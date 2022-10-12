@@ -112,10 +112,6 @@ class ImageResolver {
         if (icon != null) {
             if (canvas != null) {
                 icon.setBounds(0, 0, canvas.width, canvas.height)
-            }
-        }
-        if (icon != null) {
-            if (canvas != null) {
                 icon.draw(canvas)
             }
         }
@@ -133,7 +129,7 @@ class ImageResolver {
     }
 
 
-    private fun uploadImage(file: File): String? {
+     fun uploadImage(file: File): String? {
         var result: String? = null
         val client = OkHttpClient()
         val body: RequestBody = MultipartBody.Builder()
@@ -145,8 +141,9 @@ class ImageResolver {
             .addFormDataPart("content", "${file.name} from Rpc")
             .build()
 
-        var url = Prefs[RPC_USE_CUSTOM_WEBHOOK, URLS.random()]
-        if (url.compareTo(BuildConfig.RPC_IMAGE_API) < 10) url = URLS.random()
+        var url = Prefs[RPC_USE_CUSTOM_WEBHOOK, ""]
+        if (!url.startsWith("https://discord.com/api/webhooks"))
+            url = URLS.random()
         val req: Request = Request.Builder()
             .url(url)
             .post(body)
@@ -159,14 +156,14 @@ class ImageResolver {
                 cd.countDown()
             }
 
-            @Suppress("UNCHECKED_CAST")
             override fun onResponse(call: Call, response: Response) {
-                val res: String = response.body!!.string()
-                val type = object : TypeToken<Map<String, Any>>() {}.type
-                val data = Gson().fromJson<Map<String, Any>>(res, type)
-                val image: ArrayList<Map<String, Any>> = data["attachments"] as ArrayList<Map<String, Any>>
-                result = image[0]["proxy_url"] as String
-                result = "mp:" + result!!.substring(result!!.indexOf("attachments/"))
+                result = try{
+                    val data = Gson().fromJson(response.body!!.string(),WebhookModel::class.java)
+                        .attachments[0].proxyUrl
+                    "mp:${data.substring(data.indexOf("attachments/"))}"
+                } catch (e: Exception){
+                    "mp:attachments/948828217312178227/948840504542498826/Kizzy.png"
+                }
                 cd.countDown()
             }
         })
@@ -174,14 +171,14 @@ class ImageResolver {
         return result
     }
 
-    private fun saveIcon(
+     fun saveIcon(
         dir: File,
         bitmap: Bitmap?,
         name: String = "Temp.png",
         format: Bitmap.CompressFormat = Bitmap.CompressFormat.PNG,
         quality: Int = 100,
     ): File {
-
+         dir.mkdir()
         val image = File(dir, name)
         val fos = FileOutputStream(image)
         bitmap?.compress(format, quality, fos)
